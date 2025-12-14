@@ -20,8 +20,7 @@ class StudentForm(ctk.CTkToplevel):
 
         title_text = "Add Student" if student is None else "Edit Student"
         ctk.CTkLabel(
-            frame,
-            text=title_text,
+            frame, text=title_text,
             font=ctk.CTkFont(size=18, weight="bold")
         ).pack(pady=(10, 15))
 
@@ -39,8 +38,7 @@ class StudentForm(ctk.CTkToplevel):
 
         ctk.CTkButton(frame, text="Save", command=self._save).pack(pady=(15, 10))
 
-        # ✅ PRE-FILL DATA WHEN EDITING
-        if self.student is not None:
+        if self.student:
             self.id_entry.insert(0, self.student.id)
             self.id_entry.configure(state="disabled")
             self.name_entry.insert(0, self.student.name)
@@ -80,26 +78,24 @@ class SortDialog(ctk.CTkToplevel):
         frame.pack(expand=True, fill="both", padx=15, pady=15)
 
         ctk.CTkLabel(
-            frame,
-            text="Choose sort mode",
+            frame, text="Choose sort mode",
             font=ctk.CTkFont(size=16, weight="bold")
         ).pack(pady=(10, 15))
 
-        def add_button(text, mode):
+        def add_btn(text, mode):
             ctk.CTkButton(
-                frame,
-                text=text,
+                frame, text=text,
                 command=lambda m=mode: self._select(m)
             ).pack(pady=5, padx=20, fill="x")
 
-        add_button("Name A → Z", "name_asc")
-        add_button("Name Z → A", "name_desc")
-        add_button("Age Low → High", "age_asc")
-        add_button("Age High → Low", "age_desc")
-        add_button("Grade Low → High", "grade_asc")
-        add_button("Grade High → Low", "grade_desc")
+        add_btn("Name A → Z", "name_asc")
+        add_btn("Name Z → A", "name_desc")
+        add_btn("Age Low → High", "age_asc")
+        add_btn("Age High → Low", "age_desc")
+        add_btn("Grade Low → High", "grade_asc")
+        add_btn("Grade High → Low", "grade_desc")
 
-    def _select(self, mode: str):
+    def _select(self, mode):
         self.callback(mode)
         self.destroy()
 
@@ -131,36 +127,35 @@ class Dashboard(ctk.CTk):
             foreground=[("selected", "white")]
         )
 
-        main_frame = ctk.CTkFrame(self)
-        main_frame.pack(fill="both", expand=True)
+        main = ctk.CTkFrame(self)
+        main.pack(fill="both", expand=True)
 
-        left = ctk.CTkFrame(main_frame)
+        left = ctk.CTkFrame(main)
         left.pack(side="left", fill="both", expand=True, padx=(10, 5), pady=10)
 
-        right = ctk.CTkFrame(main_frame, corner_radius=15)
+        right = ctk.CTkFrame(main, corner_radius=15)
         right.pack(side="right", fill="y", padx=(5, 10), pady=10)
 
         ctk.CTkLabel(
-            left,
-            text="Student Management System",
+            left, text="Student Management System",
             font=ctk.CTkFont(size=22, weight="bold")
         ).pack(pady=10)
 
         table_frame = ctk.CTkFrame(left)
         table_frame.pack(fill="both", expand=True, padx=10)
 
-        columns = ("id", "name", "age", "grade")
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings")
-
-        for col in columns:
-            self.tree.heading(col, text=col.upper())
-
+        self.tree = ttk.Treeview(
+            table_frame,
+            columns=("id", "name", "age", "grade"),
+            show="headings"
+        )
+        for c in ("id", "name", "age", "grade"):
+            self.tree.heading(c, text=c.upper())
         self.tree.pack(fill="both", expand=True)
 
         # ---- Controls ----
         ctk.CTkLabel(
-            right,
-            text="Controls",
+            right, text="Controls",
             font=ctk.CTkFont(size=18, weight="bold")
         ).pack(pady=10)
 
@@ -170,33 +165,32 @@ class Dashboard(ctk.CTk):
         ctk.CTkButton(right, text="Edit Student",
                       command=self.edit_student).pack(pady=5, padx=15, fill="x")
 
-        ctk.CTkButton(
-            right,
-            text="Delete Student",
-            fg_color="#d63031",
-            hover_color="#b02426",
-            command=self.delete_student
-        ).pack(pady=5, padx=15, fill="x")
+        ctk.CTkButton(right, text="Delete Student",
+                      fg_color="#d63031", hover_color="#b02426",
+                      command=self.delete_student).pack(pady=5, padx=15, fill="x")
 
-        # ✅ Stack button
-        ctk.CTkButton(
-            right,
-            text="Undo Delete",
-            fg_color="#0984e3",
-            hover_color="#0770c2",
-            command=self.undo_delete
-        ).pack(pady=5, padx=15, fill="x")
+        ctk.CTkButton(right, text="Undo Delete",
+                      fg_color="#0984e3", hover_color="#0770c2",
+                      command=self.undo_delete).pack(pady=5, padx=15, fill="x")
 
         ctk.CTkButton(right, text="Sort...",
                       command=self.open_sort_dialog).pack(pady=5, padx=15, fill="x")
 
-        ctk.CTkButton(
-            right,
-            text="Top Student",
-            fg_color="#6c5ce7",
-            hover_color="#5a4bdc",
-            command=self.show_top_student
-        ).pack(pady=5, padx=15, fill="x")
+        # ---- Search ----
+        ctk.CTkLabel(right, text="Search (ID / Name)").pack(pady=(10, 2))
+        self.search_entry = ctk.CTkEntry(right, placeholder_text="Enter ID or Name")
+        self.search_entry.pack(pady=5, padx=15, fill="x")
+
+        ctk.CTkButton(right, text="Search",
+                      command=self.search_student).pack(pady=5, padx=15, fill="x")
+
+        ctk.CTkButton(right, text="Reset View",
+                      fg_color="#636e72", hover_color="#4b5558",
+                      command=self.refresh_table).pack(pady=5, padx=15, fill="x")
+
+        ctk.CTkButton(right, text="Top Student",
+                      fg_color="#6c5ce7", hover_color="#5a4bdc",
+                      command=self.show_top_student).pack(pady=5, padx=15, fill="x")
 
         ctk.CTkButton(right, text="Save",
                       command=self.save_data).pack(pady=5, padx=15, fill="x")
@@ -206,7 +200,7 @@ class Dashboard(ctk.CTk):
 
         self.refresh_table()
 
-    # -------- Actions --------
+    # ---------- Actions ----------
     def refresh_table(self):
         for i in self.tree.get_children():
             self.tree.delete(i)
@@ -223,20 +217,12 @@ class Dashboard(ctk.CTk):
     def edit_student(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showinfo("Edit", "Please select a student first.")
+            messagebox.showinfo("Edit", "Select a student first.")
             return
-
-        values = self.tree.item(sel[0], "values")
-        sid = values[0]
-
+        sid = self.tree.item(sel[0], "values")[0]
         student = self.repo.get_by_id(sid)
-        if not student:
-            messagebox.showerror("Error", "Student not found.")
-            return
-
         d = StudentForm(self, self.repo, student)
         self.wait_window(d)
-
         if d.result:
             _, name, age, grade = d.result
             self.repo.update(sid, name, age, grade)
@@ -245,12 +231,10 @@ class Dashboard(ctk.CTk):
     def delete_student(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showinfo("Delete", "Please select a student first.")
+            messagebox.showinfo("Delete", "Select a student first.")
             return
-
         sid = self.tree.item(sel[0], "values")[0]
         self.repo.delete(sid)
-
         self.tree.selection_remove(sel)
         self.refresh_table()
 
@@ -264,6 +248,22 @@ class Dashboard(ctk.CTk):
 
     def open_sort_dialog(self):
         SortDialog(self, lambda m: (self.repo.sort(m), self.refresh_table()))
+
+    def search_student(self):
+        q = self.search_entry.get().strip()
+        if not q:
+            messagebox.showinfo("Search", "Enter ID or Name.")
+            return
+        student = self.repo.search(q)
+        if not student:
+            messagebox.showinfo("Search", "Student not found.")
+            return
+        for item in self.tree.get_children():
+            if self.tree.item(item, "values")[0] == student.id:
+                self.tree.selection_set(item)
+                self.tree.focus(item)
+                self.tree.see(item)
+                break
 
     def show_top_student(self):
         s = self.repo.get_top_student()
