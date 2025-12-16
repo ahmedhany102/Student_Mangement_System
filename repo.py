@@ -1,8 +1,10 @@
 import json
 import os
-import heapq
 from typing import List, Optional
+
 from models import Student
+from data_structures.stack import Stack
+from data_structures.priority_queue import PriorityQueue
 
 
 class StudentRepository:
@@ -12,20 +14,20 @@ class StudentRepository:
         # Main Data Structure (Dynamic Array)
         self.students: List[Student] = []
 
-        # Priority Queue (Max-Heap by grade)
-        self.priority_queue = []
+        # Stack for Undo Delete (LIFO)
+        self.deleted_stack = Stack()
 
-        # Stack (Undo Delete)  <-- من المنهج
-        self.deleted_stack: List[Student] = []
+        # Priority Queue for Top Student
+        self.priority_queue = PriorityQueue()
 
-        self.load()  # auto-load on start
+        self.load()
 
-    # ---------- persistence ----------
+    # ---------- Persistence ----------
     def load(self) -> None:
         if not os.path.exists(self.file_path):
             self.students = []
-            self.priority_queue = []
-            self.deleted_stack = []
+            self.deleted_stack.clear()
+            self.priority_queue.clear()
             return
 
         try:
@@ -35,8 +37,8 @@ class StudentRepository:
                 self._rebuild_priority_queue()
         except Exception:
             self.students = []
-            self.priority_queue = []
-            self.deleted_stack = []
+            self.deleted_stack.clear()
+            self.priority_queue.clear()
 
     def save(self) -> None:
         with open(self.file_path, "w", encoding="utf-8") as f:
@@ -46,38 +48,36 @@ class StudentRepository:
         with open(path, "w", encoding="utf-8") as f:
             json.dump([s.to_dict() for s in self.students], f, indent=2)
 
-    # ---------- internal ----------
+    # ---------- Internal Helpers ----------
     def _rebuild_priority_queue(self) -> None:
-        self.priority_queue = []
+        self.priority_queue.clear()
         for s in self.students:
-            heapq.heappush(self.priority_queue, (-s.grade, s))
+            self.priority_queue.push(s.grade, s)
 
-    # ---------- CRUD ----------
+    # ---------- CRUD Operations ----------
     def add(self, s: Student) -> None:
         if any(x.id == s.id for x in self.students):
             raise ValueError("Student with this ID already exists.")
 
         self.students.append(s)
-        heapq.heappush(self.priority_queue, (-s.grade, s))
+        self.priority_queue.push(s.grade, s)
 
     def delete(self, student_id: str) -> None:
         student = self.get_by_id(student_id)
         if student:
-            # PUSH into Stack
-            self.deleted_stack.append(student)
+            # push deleted student into Stack (Undo)
+            self.deleted_stack.push(student)
 
         self.students = [x for x in self.students if x.id != student_id]
         self._rebuild_priority_queue()
 
     def undo_delete(self) -> Optional[Student]:
-        if not self.deleted_stack:
-            return None
-
-        # POP from Stack
         student = self.deleted_stack.pop()
-        self.students.append(student)
-        self._rebuild_priority_queue()
-        return student
+        if student:
+            self.students.append(student)
+            self._rebuild_priority_queue()
+            return student
+        return None
 
     def update(self, student_id: str, name: str, age: int, grade: int) -> None:
         s = self.get_by_id(student_id)
@@ -98,7 +98,7 @@ class StudentRepository:
                 return s
         return None
 
-    # ---------- search & sort ----------
+    # ---------- Search & Sort ----------
     def search(self, query: str) -> Optional[Student]:
         q = query.lower()
         for s in self.students:
@@ -122,6 +122,4 @@ class StudentRepository:
 
     # ---------- Priority Queue ----------
     def get_top_student(self) -> Optional[Student]:
-        if not self.priority_queue:
-            return None
-        return self.priority_queue[0][1]
+        return self.priority_queue.peek()
