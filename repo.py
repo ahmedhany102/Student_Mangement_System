@@ -6,34 +6,22 @@ from models import Student
 from data_structures.stack import Stack
 from data_structures.priority_queue import PriorityQueue
 
-
 class StudentRepository:
     def __init__(self, file_path: str = "students.json"):
         self.file_path = file_path
-
-        # Main Data Structure (Dynamic Array)
         self.students: List[Student] = []
-
-        # Stack for Undo Delete (LIFO)
         self.deleted_stack = Stack()
-
-        # Priority Queue for Top Student
         self.priority_queue = PriorityQueue()
-
         self.load()
 
-    # ---------- Persistence ----------
+    # ---------- Persistence (الحفظ والتحميل) ----------
     def load(self) -> None:
         if not os.path.exists(self.file_path):
-            self.students = []
-            self.deleted_stack.clear()
-            self.priority_queue.clear()
             return
-
+        
         try:
             with open(self.file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                self.students = [Student.from_dict(d) for d in data]
+                self.students = [Student.from_dict(d) for d in json.load(f)]
                 self._rebuild_priority_queue()
         except Exception:
             self.students = []
@@ -41,8 +29,8 @@ class StudentRepository:
             self.priority_queue.clear()
 
     def save(self) -> None:
-        with open(self.file_path, "w", encoding="utf-8") as f:
-            json.dump([s.to_dict() for s in self.students], f, indent=2)
+        # اختصرنا هنا: الحفظ العادي هو نفسه التصدير بس للملف الأساسي
+        self.export_to_file(self.file_path)
 
     def export_to_file(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
@@ -56,7 +44,8 @@ class StudentRepository:
 
     # ---------- CRUD Operations ----------
     def add(self, s: Student) -> None:
-        if any(x.id == s.id for x in self.students):
+        # لو لقينا طالب بنفس الـ ID (يعني get_by_id مرجعتش None) يبقى فيه مشكلة
+        if self.get_by_id(s.id):
             raise ValueError("Student with this ID already exists.")
 
         self.students.append(s)
@@ -65,11 +54,9 @@ class StudentRepository:
     def delete(self, student_id: str) -> None:
         student = self.get_by_id(student_id)
         if student:
-            # push deleted student into Stack (Undo)
             self.deleted_stack.push(student)
-
-        self.students = [x for x in self.students if x.id != student_id]
-        self._rebuild_priority_queue()
+            self.students.remove(student) # دالة remove أسهل من إعادة بناء القائمة
+            self._rebuild_priority_queue()
 
     def undo_delete(self) -> Optional[Student]:
         student = self.deleted_stack.pop()
@@ -84,41 +71,37 @@ class StudentRepository:
         if not s:
             raise ValueError("Student not found.")
 
-        s.name = name
-        s.age = age
-        s.grade = grade
+        # تحديث البيانات دفعة واحدة
+        s.name, s.age, s.grade = name, age, grade
         self._rebuild_priority_queue()
 
     def get_all(self) -> List[Student]:
         return list(self.students)
 
     def get_by_id(self, student_id: str) -> Optional[Student]:
-        for s in self.students:
-            if s.id == student_id:
-                return s
-        return None
+        # السطر السحري: هات أول واحد يقابلك بالـ ID ده، ولو مفيش رجع None
+        return next((s for s in self.students if s.id == student_id), None)
 
     # ---------- Search & Sort ----------
     def search(self, query: str) -> Optional[Student]:
         q = query.lower()
-        for s in self.students:
-            if q in s.id.lower() or q in s.name.lower():
-                return s
-        return None
+        # هات أول طالب الـ ID أو الاسم بتاعه فيه كلمة البحث
+        return next((s for s in self.students if q in s.id.lower() or q in s.name.lower()), None)
 
     def sort(self, mode: str) -> None:
-        if mode == "name_asc":
-            self.students.sort(key=lambda s: s.name.lower())
-        elif mode == "name_desc":
-            self.students.sort(key=lambda s: s.name.lower(), reverse=True)
-        elif mode == "age_asc":
-            self.students.sort(key=lambda s: s.age)
-        elif mode == "age_desc":
-            self.students.sort(key=lambda s: s.age, reverse=True)
-        elif mode == "grade_asc":
-            self.students.sort(key=lambda s: s.grade)
-        elif mode == "grade_desc":
-            self.students.sort(key=lambda s: s.grade, reverse=True)
+        # خريطة الترتيب بدل دوشة الـ if والـ elif
+        sort_map = {
+            "name_asc":   (lambda s: s.name.lower(), False),
+            "name_desc":  (lambda s: s.name.lower(), True),
+            "age_asc":    (lambda s: s.age, False),
+            "age_desc":   (lambda s: s.age, True),
+            "grade_asc":  (lambda s: s.grade, False),
+            "grade_desc": (lambda s: s.grade, True),
+        }
+        
+        if mode in sort_map:
+            key_func, reverse_val = sort_map[mode]
+            self.students.sort(key=key_func, reverse=reverse_val)
 
     # ---------- Priority Queue ----------
     def get_top_student(self) -> Optional[Student]:
